@@ -41,8 +41,19 @@ module.exports = class User extends Model {
 	static associate(db) {
 		db.User.hasMany(db.Post) // 유저:트윗 = 1:N 관계
 		db.User.hasMany(db.Comment) // 유저:댓글 = 1:N 관계
-		db.User.hasMany(db.Post, {
+		db.User.belongsToMany(db.Post, {
 			through: 'Like',
+			as: 'Liked',
 		}) // 유저:트윗좋아요 = N:M 관계
+		db.User.belongsToMany(db.User, {
+			through: 'Follow',
+			as: 'Followers',
+			foreignKey: 'FollowingId',
+		})
+		db.User.belongsToMany(db.User, {
+			through: 'Follow',
+			as: 'Followings',
+			foreignKey: 'FollowerId',
+		})
 	}
 }

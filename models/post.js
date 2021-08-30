@@ -31,9 +31,11 @@ module.exports = class Post extends Model {
 		db.Post.belongsTo(db.User) // 유저:트윗 = 1:N 관계
 		db.Post.hasMany(db.Comment) // 트윗:댓글 = 1:N 관계
 		db.Post.hasMany(db.Image) // 트윗:이미지 = 1:N 관계
-		db.Post.belongsToMany(db.Hashtag) // 트윗:해쉬태그 = N:M 관계
+		db.Post.belongsToMany(db.Hashtag, { through: 'PostHashtag' }) // 트윗:해쉬태그 = N:M 관계
 		db.Post.belongsToMany(db.User, {
 			through: 'Like',
+			as: 'Likers',
 		}) // 유저:트윗좋아요 = N:M 관계
+		db.Post.belongsTo(db.Post, { as: 'Retweet' })
 	}
 }

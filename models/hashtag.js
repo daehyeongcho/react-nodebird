@@ -28,6 +28,6 @@ module.exports = class Hashtag extends Model {
 	}
 
 	static associate(db) {
-		db.Hashtag.belongsToMany(db.Post) // 트윗:해쉬태그 = N:M 관계
+		db.Hashtag.belongsToMany(db.Post, { through: 'PostHashtag' }) // 트윗:해쉬태그 = N:M 관계
 	}
 }

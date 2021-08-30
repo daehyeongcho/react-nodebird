@@ -2,6 +2,7 @@ const express = require('express')
 const router = express.Router()
 
 const postRouter = require('./post')
+const userRouter = require('./user')
 
 router.get('/', (req, res) => {
 	res.send('hello express')
@@ -16,5 +17,6 @@ router.get('/posts', (req, res) => {
 })
 
 router.use('/post', postRouter)
+router.use('/user', userRouter)
 
 module.exports = router

@@ -1,13 +1,13 @@
 const express = require('express')
 const router = express.Router()
 
+/* POST /post/ */
 router.post('/', (req, res) => {
-	// POST /post
 	res.json({ id: 1, content: 'hello' })
 })
 
+/* DELETE /posts/ */
 router.delete('/', (req, res) => {
-	// DELETE /post
 	res.send('delete complete')
 })
 

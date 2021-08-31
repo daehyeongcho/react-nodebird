@@ -16,6 +16,7 @@ router.post('/login', (req, res, next) => {
 		if (info) {
 			return res.status(401).send(info.reason) // 클라이언트 에러
 		}
+		console.log(user)
 		/* 패스포트 로그인 */
 		return req.login(user, async (loginErr) => {
 			/* 패스포트 모듈 로그인 에러 */
@@ -24,7 +25,7 @@ router.post('/login', (req, res, next) => {
 				return next(loginErr)
 			}
 			const fullUserWithoutPassword = await User.findOne({
-				where: { id: user.id }, // 조건 설정
+				where: { email: user.email }, // 조건 설정
 				attributes: { exclude: ['password'] }, // 가져오고 싶은 column 설정
 				include: [
 					/* User model의 associate 중에 가져오고 싶은 것을 추가로 적음 */
@@ -50,7 +51,7 @@ router.post('/logout', (req, res, next) => {
 	res.send('logout succeeded')
 })
 
-/* POST /user/ */
+/* POST /user/ : 회원가입 */
 router.post('/', async (req, res, next) => {
 	try {
 		const { email, nickname } = req.body

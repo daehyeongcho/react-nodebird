@@ -3,6 +3,7 @@ const cors = require('cors')
 const session = require('express-session')
 const cookieParser = require('cookie-parser')
 const passport = require('passport')
+const morgan = require('morgan')
 
 const routes = require('./routes')
 const db = require('./models')
@@ -22,6 +23,7 @@ require('dotenv').config() // dotenv 모듈
 passportConfig() // passport 모듈
 
 /* 미들웨어 */
+app.use(morgan('dev')) // 프론트 -> 백엔드 요청 기록
 app.use(
 	cors({
 		origin: 'http://localhost:3000',

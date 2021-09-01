@@ -22,13 +22,20 @@ router.post('/', isLoggedIn, async (req, res, next) => {
 				},
 				{
 					model: Comment,
+					include: [
+						{
+							model: User,
+							attributes: ['email', 'nickname'],
+						},
+					],
 				},
 				{
 					model: User,
+					attributes: ['email', 'nickname'],
 				},
 			],
 		})
-		res.status(201).json(post)
+		res.status(201).json(fullPost)
 	} catch (err) {
 		console.log(error)
 		next(err)
@@ -51,9 +58,16 @@ router.post('/:postId/comment', isLoggedIn, async (req, res, next) => {
 			PostId: req.params.postId,
 			UserEmail: req.user.email, // deserializeUser에서 req.user 만들어줌
 		}) // comment 생성하고 DB에 저장
-		res.status(201).json(comment)
+
+		const fullComment = await Comment.findOne({
+			where: {
+				id: comment.id,
+			},
+			include: [{ model: User, attributes: ['email', 'nickname'] }],
+		})
+		res.status(201).json(fullComment)
 	} catch (err) {
-		console.log(error)
+		console.log(err)
 		next(err)
 	}
 })

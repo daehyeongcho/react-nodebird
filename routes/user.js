@@ -7,6 +7,42 @@ const { isLoggedIn, isNotLoggedIn } = require('./middlewares')
 
 const router = express.Router()
 
+/* GET /user/ : 로그인 유저 정보 */
+router.get('/', async (req, res, next) => {
+	try {
+		/* 로그인 되어 있을 때만 사용자 정보 불러오기 */
+		if (req.user) {
+			const fullUserWithoutPassword = await User.findOne({
+				where: { email: req.user.email }, // 조건 설정
+				attributes: { exclude: ['password'] }, // 가져오고 싶은 column 설정
+				include: [
+					/* User model의 associate 중에 가져오고 싶은 것을 추가로 적음 */
+					{
+						model: Post,
+						attributes: ['id'], // 메모리 낭비를 줄이기 위해 primary key만 가져옴
+					},
+					{
+						model: User,
+						as: 'Followings',
+						attributes: ['email'], // 메모리 낭비를 줄이기 위해 primary key만 가져옴
+					},
+					{
+						model: User,
+						as: 'Followers',
+						attributes: ['email'], // 메모리 낭비를 줄이기 위해 primary key만 가져옴
+					},
+				],
+			})
+			res.status(200).json(fullUserWithoutPassword)
+		} else {
+			res.status(200).json(null)
+		}
+	} catch (err) {
+		console.error(err)
+		next(err)
+	}
+})
+
 /* POST /user/login */
 router.post('/login', isNotLoggedIn, (req, res, next) => {
 	passport.authenticate('local', (err, user, info) => {

@@ -12,23 +12,28 @@ router.get('/', async (req, res, next) => {
 			order: [
 				['createdAt', 'DESC'],
 				[Comment, 'createdAt', 'DESC'],
-			], // 최신 글부터
+			], // 최신 글, 댓글부터
 			include: [
 				{
-					model: User, // 작성자 정보
+					model: Image, // 첨부 이미지
+				},
+				{
+					model: User, // 게시글 작성자
 					attributes: ['email', 'nickname'],
 				},
 				{
-					model: Image, // 첨부 이미지 정보
-				},
-				{
-					model: Comment, // 댓글 정보
+					model: Comment, // 댓글
 					include: [
 						{
-							model: User,
+							model: User, // 댓글 작성자
 							attributes: ['email', 'nickname'],
 						},
 					],
+				},
+				{
+					model: User, // 좋아요 누른 사람
+					as: 'Likers',
+					attributes: ['email'],
 				},
 			],
 		})

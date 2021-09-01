@@ -85,7 +85,7 @@ router.post('/login', isNotLoggedIn, (req, res, next) => {
 router.post('/logout', isLoggedIn, (req, res, next) => {
 	req.logout()
 	req.session.destroy()
-	res.send('logout succeeded')
+	res.status(200).send('logout succeeded')
 })
 
 /* POST /user/ : 회원가입 */
@@ -110,6 +110,24 @@ router.post('/', isNotLoggedIn, async (req, res, next) => {
 	} catch (err) {
 		console.error(err)
 		next(err) // status 500(서버 쪽 에러)
+	}
+})
+
+/* PATCH /user/nickname */
+router.patch('/nickname', isLoggedIn, async (req, res, next) => {
+	try {
+		await User.update(
+			{
+				nickname: req.body.nickname,
+			},
+			{
+				where: { email: req.user.email },
+			},
+		)
+		res.status(200).json({ nickname: req.body.nickname })
+	} catch (err) {
+		console.error(err)
+		next(err)
 	}
 })
 

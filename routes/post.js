@@ -42,7 +42,24 @@ router.post('/', isLoggedIn, async (req, res, next) => {
 		})
 		res.status(201).json(fullPost)
 	} catch (err) {
-		console.log(error)
+		console.error(error)
+		next(err)
+	}
+})
+
+/* DELETE /post/1 */
+router.delete('/:postId', isLoggedIn, async (req, res, next) => {
+	try {
+		const id = parseInt(req.params.postId, 10)
+		await Post.destroy({
+			where: {
+				id,
+				UserEmail: req.user.email, // 내가 작성한 글만 삭제
+			},
+		})
+		res.status(200).json({ id })
+	} catch (err) {
+		console.error(err)
 		next(err)
 	}
 })
@@ -50,9 +67,10 @@ router.post('/', isLoggedIn, async (req, res, next) => {
 /* POST /post/1/comment */
 router.post('/:postId/comment', isLoggedIn, async (req, res, next) => {
 	try {
+		const id = parseInt(req.params.postId, 10)
 		/* 존재하지 않는 게시글에 댓글 작성하려고 하는 경우 */
 		const post = await Post.findOne({
-			where: { id: req.params.postId },
+			where: { id },
 		})
 		if (!post) {
 			return res.status(403).send('존재하지 않는 게시글입니다.')
@@ -60,7 +78,7 @@ router.post('/:postId/comment', isLoggedIn, async (req, res, next) => {
 
 		const comment = await Comment.create({
 			content: req.body.content,
-			PostId: req.params.postId,
+			PostId: id,
 			UserEmail: req.user.email, // deserializeUser에서 req.user 만들어줌
 		}) // comment 생성하고 DB에 저장
 
@@ -69,10 +87,10 @@ router.post('/:postId/comment', isLoggedIn, async (req, res, next) => {
 				id: comment.id,
 			},
 			include: [{ model: User, attributes: ['email', 'nickname'] }],
-		})
+		}) // 추가로 코멘트 작성자 정보 넘겨줌
 		res.status(201).json(fullComment)
 	} catch (err) {
-		console.log(err)
+		console.error(err)
 		next(err)
 	}
 })
@@ -80,8 +98,9 @@ router.post('/:postId/comment', isLoggedIn, async (req, res, next) => {
 /* PATCH /post/1/like */
 router.patch('/:postId/like', isLoggedIn, async (req, res, next) => {
 	try {
+		const id = parseInt(req.params.postId, 10)
 		const post = await Post.findOne({
-			where: { id: req.params.postId },
+			where: { id },
 		})
 		/* id가 postId인 게시글이 존재하지 않으면 */
 		if (!post) {
@@ -100,8 +119,9 @@ router.patch('/:postId/like', isLoggedIn, async (req, res, next) => {
 /* DELETE /post/1/like */
 router.delete('/:postId/like', isLoggedIn, async (req, res, next) => {
 	try {
+		const id = parseInt(req.params.postId, 10)
 		const post = await Post.findOne({
-			where: { id: req.params.postId },
+			where: { id },
 		})
 		/* id가 postId인 게시글이 존재하지 않으면 */
 		if (!post) {
@@ -110,7 +130,7 @@ router.delete('/:postId/like', isLoggedIn, async (req, res, next) => {
 
 		/* 존재하면 */
 		await post.removeLikers(req.user.email)
-		res.json({ PostId: post.id, UserEmail: req.user.email })
+		res.status(200).json({ PostId: post.id, UserEmail: req.user.email })
 	} catch (err) {
 		console.error(err)
 		next(err)

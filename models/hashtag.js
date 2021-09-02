@@ -9,7 +9,7 @@ module.exports = class Hashtag extends Model {
 		return super.init(
 			{
 				/* id: 기본으로 들어있다. */
-				content: {
+				name: {
 					type: DataTypes.STRING(20),
 					allowNull: false, // 필수
 				},

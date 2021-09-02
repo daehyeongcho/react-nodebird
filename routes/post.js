@@ -3,7 +3,7 @@ const multer = require('multer')
 const path = require('path')
 const fs = require('fs')
 
-const { Post, Comment, Image, User } = require('../models')
+const { Post, Comment, Image, User, Hashtag } = require('../models')
 const { isLoggedIn } = require('./middlewares')
 
 const router = express.Router()
@@ -36,28 +36,35 @@ const upload = multer({
 /* POST /post */
 router.post('/', isLoggedIn, upload.none(), async (req, res, next) => {
 	try {
+		const hashtags = req.body.content.match(/#[^\s#]+/g)
 		const post = await Post.create({
 			content: req.body.content,
 			UserEmail: req.user.email, // deserializeUser에서 req.user 만들어줌
 		})
 
+		/* 해쉬태그 처리 */
+		if (hashtags) {
+			/* 이미 존재하는 해쉬태그면 새로 생성해서 올릴 필요 없음 */
+			const result = await Promise.all(
+				hashtags.map((tag) =>
+					Hashtag.findOrCreate({ where: { name: tag.slice(1).toLowerCase() } }),
+				),
+			) // return [hashtag, 생성됐는지아닌지여부]
+			await post.addHashtags(result.map((v) => v[0]))
+		}
+
 		/* 이미지를 올린 경우 */
 		if (req.body.image) {
-			try {
-				/* 이미지를 여러 개 올린 경우 image: [랜디.jpg, 제로초.jpg] */
-				if (Array.isArray(req.body.image)) {
-					const images = await Promise.all(
-						req.body.image.map((image) => Image.create({ src: image })),
-					) // DB엔 이미지 파일을 직접 올리지 않고 주소만 저장함.
-					await post.addImages(images)
-				} else {
-					/* 이미지를 하나만 올린 경우 image: 랜디.jpg */
-					const image = await Image.create({ src: req.body.image })
-					await post.addImages(image)
-				}
-			} catch (err) {
-				console.error(err)
-				next(err)
+			/* 이미지를 여러 개 올린 경우 image: [랜디.jpg, 제로초.jpg] */
+			if (Array.isArray(req.body.image)) {
+				const images = await Promise.all(
+					req.body.image.map((image) => Image.create({ src: image })),
+				) // DB엔 이미지 파일을 직접 올리지 않고 주소만 저장함.
+				await post.addImages(images)
+			} else {
+				/* 이미지를 하나만 올린 경우 image: 랜디.jpg */
+				const image = await Image.create({ src: req.body.image })
+				await post.addImages(image)
 			}
 		}
 

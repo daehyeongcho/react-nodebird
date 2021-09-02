@@ -5,7 +5,7 @@ const { isLoggedIn } = require('./middlewares')
 
 const router = express.Router()
 
-/* POST /post/ */
+/* POST /post */
 router.post('/', isLoggedIn, async (req, res, next) => {
 	try {
 		const post = await Post.create({
@@ -48,9 +48,9 @@ router.post('/', isLoggedIn, async (req, res, next) => {
 })
 
 /* DELETE /post/1 */
-router.delete('/:postId', isLoggedIn, async (req, res, next) => {
+router.delete('/:id', isLoggedIn, async (req, res, next) => {
 	try {
-		const id = parseInt(req.params.postId, 10)
+		const id = parseInt(req.params.id, 10)
 		await Post.destroy({
 			where: {
 				id,
@@ -96,9 +96,9 @@ router.post('/:postId/comment', isLoggedIn, async (req, res, next) => {
 })
 
 /* PATCH /post/1/like */
-router.patch('/:postId/like', isLoggedIn, async (req, res, next) => {
+router.patch('/:id/like', isLoggedIn, async (req, res, next) => {
 	try {
-		const id = parseInt(req.params.postId, 10)
+		const id = parseInt(req.params.id, 10)
 		const post = await Post.findOne({
 			where: { id },
 		})
@@ -117,9 +117,9 @@ router.patch('/:postId/like', isLoggedIn, async (req, res, next) => {
 })
 
 /* DELETE /post/1/like */
-router.delete('/:postId/like', isLoggedIn, async (req, res, next) => {
+router.delete('/:id/like', isLoggedIn, async (req, res, next) => {
 	try {
-		const id = parseInt(req.params.postId, 10)
+		const id = parseInt(req.params.id, 10)
 		const post = await Post.findOne({
 			where: { id },
 		})

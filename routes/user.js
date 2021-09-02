@@ -7,7 +7,7 @@ const { isLoggedIn, isNotLoggedIn } = require('./middlewares')
 
 const router = express.Router()
 
-/* GET /user/ : 로그인 유저 정보 */
+/* GET /user : 로그인 유저 정보 */
 router.get('/', async (req, res, next) => {
 	try {
 		/* 로그인 되어 있을 때만 사용자 정보 불러오기 */
@@ -68,12 +68,18 @@ router.post('/login', isNotLoggedIn, (req, res, next) => {
 					/* User model의 associate 중에 가져오고 싶은 것을 추가로 적음 */
 					{
 						model: Post,
+						attributes: ['id'],
 					},
 					{
 						model: User,
 						as: 'Followings',
+						attributes: ['email'],
 					},
-					{ model: User, as: 'Followers' },
+					{
+						model: User,
+						as: 'Followers',
+						attributes: ['email'],
+					},
 				],
 			})
 			return res.status(200).json(fullUserWithoutPassword) // 사용자 정보를 프론트로 넘겨준다.
@@ -88,7 +94,7 @@ router.post('/logout', isLoggedIn, (req, res, next) => {
 	res.status(200).send('logout succeeded')
 })
 
-/* POST /user/ : 회원가입 */
+/* POST /user : 회원가입 */
 router.post('/', isNotLoggedIn, async (req, res, next) => {
 	try {
 		const { email, nickname } = req.body
@@ -125,6 +131,86 @@ router.patch('/nickname', isLoggedIn, async (req, res, next) => {
 			},
 		)
 		res.status(200).json({ nickname: req.body.nickname })
+	} catch (err) {
+		console.error(err)
+		next(err)
+	}
+})
+
+/* PATCH /user/1/follow */
+router.patch('/:userEmail/follow', isLoggedIn, async (req, res, next) => {
+	try {
+		const user = await User.findOne({ where: { email: req.params.userEmail } })
+		if (!user) {
+			res.status(403).send('없는 사람을 팔로우하려고 하시네요?')
+		}
+
+		await user.addFollowers(req.user.email) // 찾은 유저의 팔로워 명단에 로그인 유저 email 저장
+		res.status(200).json({ email: user.email, nickname: user.nickname })
+	} catch (err) {
+		console.error(err)
+		next(err)
+	}
+})
+
+/* DELETE /user/1/follow */
+router.delete('/:userEmail/follow', isLoggedIn, async (req, res, next) => {
+	try {
+		const user = await User.findOne({ where: { email: req.params.userEmail } })
+		if (!user) {
+			res.status(403).send('없는 사람을 언팔로우하려고 하시네요?')
+		}
+
+		await user.removeFollowers(req.user.email) // 찾은 유저의 팔로워 명단에서 로그인 유저 email 삭제
+		res.status(200).json({ email: user.email })
+	} catch (err) {
+		console.error(err)
+		next(err)
+	}
+})
+
+/* DELETE /user/follower/2 */
+router.delete('/follower/:email', isLoggedIn, async (req, res, next) => {
+	try {
+		const user = await User.findOne({ where: { email: req.params.email } })
+		if (!user) {
+			res.status(403).send('없는 사람을 차단하려고 하시네요?')
+		}
+
+		await user.removeFollowings(req.user.email) // 찾은 유저의 팔로잉 명단에서 로그인 유저 email 삭제
+		res.status(200).json({ email: user.email })
+	} catch (err) {
+		console.error(err)
+		next(err)
+	}
+})
+
+/* GET /user/followers */
+router.get('/followers', isLoggedIn, async (req, res, next) => {
+	try {
+		const user = await User.findOne({ where: { email: req.user.email } })
+		if (!user) {
+			res.status(403).send('로그인 사용자 정보가 없습니다.')
+		}
+
+		const followers = await user.getFollowers()
+		res.status(200).json(followers)
+	} catch (err) {
+		console.error(err)
+		next(err)
+	}
+})
+
+/* GET /user/followings */
+router.get('/followings', isLoggedIn, async (req, res, next) => {
+	try {
+		const user = await User.findOne({ where: { email: req.user.email } })
+		if (!user) {
+			res.status(403).send('로그인 사용자 정보가 없습니다.')
+		}
+
+		const followings = await user.getFollowings()
+		res.status(200).json(followings)
 	} catch (err) {
 		console.error(err)
 		next(err)

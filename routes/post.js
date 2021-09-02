@@ -1,17 +1,65 @@
 const express = require('express')
+const multer = require('multer')
+const path = require('path')
+const fs = require('fs')
 
 const { Post, Comment, Image, User } = require('../models')
 const { isLoggedIn } = require('./middlewares')
 
 const router = express.Router()
 
+/* uploads 폴더가 없어서 새로 생성 */
+try {
+	fs.accessSync('uploads')
+} catch (err) {
+	console.log('uploads 폴더가 없으므로 생성합니다.')
+	fs.mkdirSync('uploads')
+}
+
+/* multer 미들웨어 선언 */
+const upload = multer({
+	storage: multer.diskStorage({
+		destination(req, file, done) {
+			done(null, 'uploads')
+		},
+
+		/* 랜디.jpg */
+		filename(req, file, done) {
+			const ext = path.extname(file.originalname) // 확장자 추출(.jpg)
+			const basename = path.basename(file.originalname, ext) // 랜디
+			done(null, basename + '_' + new Date().getTime() + ext) // 랜디_15184712891.jpg
+		},
+	}),
+	limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+})
+
 /* POST /post */
-router.post('/', isLoggedIn, async (req, res, next) => {
+router.post('/', isLoggedIn, upload.none(), async (req, res, next) => {
 	try {
 		const post = await Post.create({
 			content: req.body.content,
 			UserEmail: req.user.email, // deserializeUser에서 req.user 만들어줌
 		})
+
+		/* 이미지를 올린 경우 */
+		if (req.body.image) {
+			try {
+				/* 이미지를 여러 개 올린 경우 image: [랜디.jpg, 제로초.jpg] */
+				if (Array.isArray(req.body.image)) {
+					const images = await Promise.all(
+						req.body.image.map((image) => Image.create({ src: image })),
+					) // DB엔 이미지 파일을 직접 올리지 않고 주소만 저장함.
+					await post.addImages(images)
+				} else {
+					/* 이미지를 하나만 올린 경우 image: 랜디.jpg */
+					const image = await Image.create({ src: req.body.image })
+					await post.addImages(image)
+				}
+			} catch (err) {
+				console.error(err)
+				next(err)
+			}
+		}
 
 		/* 정보를 완성해서 돌려주기 */
 		const fullPost = await Post.findOne({
@@ -42,7 +90,7 @@ router.post('/', isLoggedIn, async (req, res, next) => {
 		})
 		res.status(201).json(fullPost)
 	} catch (err) {
-		console.error(error)
+		console.error(err)
 		next(err)
 	}
 })
@@ -62,6 +110,12 @@ router.delete('/:id', isLoggedIn, async (req, res, next) => {
 		console.error(err)
 		next(err)
 	}
+})
+
+/* POST /post/images */
+router.post('/images', isLoggedIn, upload.array(/* input name */ 'image'), (req, res, next) => {
+	console.log(req.files)
+	res.json(req.files.map((file) => `http://localhost:3065/images/${file.filename}`))
 })
 
 /* POST /post/1/comment */

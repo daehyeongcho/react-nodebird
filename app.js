@@ -4,6 +4,7 @@ const session = require('express-session')
 const cookieParser = require('cookie-parser')
 const passport = require('passport')
 const morgan = require('morgan')
+const path = require('path')
 
 const routes = require('./routes')
 const db = require('./models')
@@ -30,6 +31,7 @@ app.use(
 		credentials: true, // 쿠키 허용
 	}),
 )
+app.use('/images', express.static(path.join(__dirname, 'uploads'))) // express 서버가 uploads 폴더를 프론트에 제공
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser(process.env.COOKIE_SECRET))

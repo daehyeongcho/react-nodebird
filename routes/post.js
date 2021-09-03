@@ -198,4 +198,96 @@ router.delete('/:id/like', isLoggedIn, async (req, res, next) => {
 	}
 })
 
+/* POST /post/1/retweet */
+router.post('/:id/retweet', isLoggedIn, async (req, res, next) => {
+	try {
+		const id = parseInt(req.params.id, 10)
+		/* 존재하지 않는 게시글에 댓글 작성하려고 하는 경우 */
+		const post = await Post.findOne({
+			where: { id },
+			include: [
+				{
+					model: Post,
+					as: 'Retweet',
+				}, // RetweetId도 붙여서 읽어옴.
+			],
+		})
+		if (!post) {
+			return res.status(403).send('존재하지 않는 게시글입니다.')
+		}
+
+		/* 남이 리트윗한 내 글을 내가 다시 리트윗하는 경우는 막음 */
+		if (post.Retweet && post.Retweet.UserEmail === req.user.email) {
+			return res.status(403).send('리트윗된 자신의 글을 다시 리트윗할 수 없습니다.')
+		}
+
+		const retweetTargetId = post.RetweetId || post.id // 리트윗된 적이 있으면 그대로 유지
+
+		/* 이미 리트윗했는지 검사 */
+		const exPost = await Post.findOne({
+			where: {
+				UserEmail: req.user.email,
+				RetweetId: retweetTargetId,
+			},
+		})
+		if (exPost) {
+			return res.status(403).send('이미 리트윗했습니다.')
+		}
+
+		/* 리트윗은 원래 기존 글을 공유하는 개념이므로 Post 새로 생성 */
+		const retweet = await Post.create({
+			UserEmail: req.user.email,
+			RetweetId: retweetTargetId,
+			content: 'retweet', // content 비워두면 안돼서 채워둠
+		})
+
+		/* 리트윗 된 게시글 가져옴 */
+		const retweetWithPrevPost = await Post.findOne({
+			where: { id: retweet.id },
+			include: [
+				{
+					model: User, // 리트윗 한 사용자
+					attributes: ['email', 'nickname'],
+				},
+				{
+					model: Image,
+				},
+				{
+					model: Comment,
+					include: [
+						{
+							model: User,
+							attributes: ['email', 'nickname'],
+						},
+					],
+				},
+				{
+					model: User,
+					as: 'Likers',
+					attributes: ['email'],
+				},
+				{
+					model: Post, // 리트윗 된 게시물 내용
+					as: 'Retweet',
+					include: [
+						{
+							model: User,
+							attributes: ['email', 'nickname'],
+						},
+						{
+							model: Image,
+						},
+					],
+				},
+			],
+		})
+		res.status(201).json(retweetWithPrevPost)
+		// 이런식으로 한꺼번에 가져오면 query 처리 속도가 엄청나게 느려짐.
+		// 쪼개줘야 함. (댓글은 따로 불러오게 처리한다든지)
+	} catch (err) {
+		console.error(err)
+		next(err)
+	}
+})
+
 module.exports = router

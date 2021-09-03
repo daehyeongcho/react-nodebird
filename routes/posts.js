@@ -35,6 +35,19 @@ router.get('/', async (req, res, next) => {
 					as: 'Likers',
 					attributes: ['email'],
 				},
+				{
+					model: Post, // 리트윗 게시글
+					as: 'Retweet',
+					include: [
+						{
+							model: User,
+							attributes: ['email', 'nickname'],
+						},
+						{
+							model: Image,
+						},
+					],
+				},
 			],
 		})
 		res.status(200).json(posts)

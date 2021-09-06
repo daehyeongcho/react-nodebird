@@ -217,4 +217,45 @@ router.get('/followings', isLoggedIn, async (req, res, next) => {
 	}
 })
 
+/* GET /user/dhcho1034@gmail.com */
+router.get('/:email', async (req, res, next) => {
+	try {
+		const fullUserWithoutPassword = await User.findOne({
+			where: { email: req.params.email }, // 조건 설정
+			attributes: { exclude: ['password'] }, // 가져오고 싶은 column 설정
+			include: [
+				/* User model의 associate 중에 가져오고 싶은 것을 추가로 적음 */
+				{
+					model: Post,
+					attributes: ['id'], // 메모리 낭비를 줄이기 위해 primary key만 가져옴
+				},
+				{
+					model: User,
+					as: 'Followings',
+					attributes: ['email'], // 메모리 낭비를 줄이기 위해 primary key만 가져옴
+				},
+				{
+					model: User,
+					as: 'Followers',
+					attributes: ['email'], // 메모리 낭비를 줄이기 위해 primary key만 가져옴
+				},
+			],
+		})
+
+		if (!fullUserWithoutPassword) {
+			return res.status(404).json('존재하지 않는 사용자입니다.')
+		}
+
+		/* 개인정보 침해 예방을 위해 숫자만 보내줌 */
+		const result = fullUserWithoutPassword.toJSON()
+		result.Posts = result.Posts.length
+		result.Followers = result.Followers.length
+		result.Followings = result.Followings.length
+		return res.status(200).json(result)
+	} catch (err) {
+		console.error(err)
+		next(err)
+	}
+})
+
 module.exports = router

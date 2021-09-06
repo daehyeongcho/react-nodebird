@@ -85,6 +85,7 @@ router.post('/', isLoggedIn, upload.none(), async (req, res, next) => {
 						{
 							model: User, // 댓글 작성자
 							attributes: ['email', 'nickname'],
+							order: [['createdAt', 'DESC']],
 						},
 					],
 				},
@@ -96,6 +97,51 @@ router.post('/', isLoggedIn, upload.none(), async (req, res, next) => {
 			],
 		})
 		res.status(201).json(fullPost)
+	} catch (err) {
+		console.error(err)
+		next(err)
+	}
+})
+
+/* GET /post/1 */
+router.get('/:id', async (req, res, next) => {
+	try {
+		const id = parseInt(req.params.id, 10)
+		const post = await Post.findOne({ where: { id } })
+
+		if (!post) {
+			return res.status(404).send('존재하지 않는 게시글입니다.')
+		}
+
+		/* 정보를 완성해서 돌려주기 */
+		const fullPost = await Post.findOne({
+			where: { id: post.id },
+			include: [
+				{
+					model: Image, // 첨부 이미지
+				},
+				{
+					model: User, // 게시글 작성자
+					attributes: ['email', 'nickname'],
+				},
+				{
+					model: Comment, // 댓글
+					include: [
+						{
+							model: User, // 댓글 작성자
+							attributes: ['email', 'nickname'],
+							order: [['createdAt', 'DESC']],
+						},
+					],
+				},
+				{
+					model: User, // 좋아요 누른 사람
+					as: 'Likers',
+					attributes: ['email'],
+				},
+			],
+		})
+		return res.status(201).json(fullPost)
 	} catch (err) {
 		console.error(err)
 		next(err)
@@ -258,6 +304,7 @@ router.post('/:id/retweet', isLoggedIn, async (req, res, next) => {
 						{
 							model: User,
 							attributes: ['email', 'nickname'],
+							order: [['createdAt', 'DESC']],
 						},
 					],
 				},

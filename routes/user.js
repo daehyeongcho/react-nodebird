@@ -1,8 +1,9 @@
 const express = require('express')
 const bcrypt = require('bcrypt')
 const passport = require('passport')
+const { Op } = require('sequelize')
 
-const { User, Post } = require('../models')
+const { User, Post, Comment, Image } = require('../models')
 const { isLoggedIn, isNotLoggedIn } = require('./middlewares')
 
 const router = express.Router()
@@ -217,41 +218,103 @@ router.get('/followings', isLoggedIn, async (req, res, next) => {
 	}
 })
 
-/* GET /user/dhcho1034@gmail.com */
+/* GET /user/:email */
 router.get('/:email', async (req, res, next) => {
 	try {
 		const fullUserWithoutPassword = await User.findOne({
-			where: { email: req.params.email }, // 조건 설정
-			attributes: { exclude: ['password'] }, // 가져오고 싶은 column 설정
+			where: { email: req.params.email },
+			attributes: {
+				exclude: ['password'],
+			},
 			include: [
-				/* User model의 associate 중에 가져오고 싶은 것을 추가로 적음 */
 				{
 					model: Post,
-					attributes: ['id'], // 메모리 낭비를 줄이기 위해 primary key만 가져옴
+					attributes: ['id'],
 				},
 				{
 					model: User,
 					as: 'Followings',
-					attributes: ['email'], // 메모리 낭비를 줄이기 위해 primary key만 가져옴
+					attributes: ['email'],
 				},
 				{
 					model: User,
 					as: 'Followers',
-					attributes: ['email'], // 메모리 낭비를 줄이기 위해 primary key만 가져옴
+					attributes: ['email'],
 				},
 			],
 		})
 
-		if (!fullUserWithoutPassword) {
-			return res.status(404).json('존재하지 않는 사용자입니다.')
+		if (fullUserWithoutPassword) {
+			const data = fullUserWithoutPassword.toJSON()
+			data.Posts = data.Posts.length
+			data.Followings = data.Followings.length
+			data.Followers = data.Followers.length
+			res.status(200).json(data)
+		} else {
+			res.status(404).json('존재하지 않는 사용자입니다.')
+		}
+	} catch (error) {
+		console.error(error)
+		next(error)
+	}
+})
+
+/* GET /user/:email/posts/ */
+router.get('/:email/posts', async (req, res, next) => {
+	try {
+		const lastId = parseInt(req.query.lastId, 10)
+		const where = { UserEmail: req.params.email }
+
+		/* 초기 로딩이 아닐 때 */
+		if (lastId) {
+			where.id = { [Op.lt]: parseInt(req.query.lastId, 10) } // lastId보다 낮은 id의 post를 불러오게 됨
 		}
 
-		/* 개인정보 침해 예방을 위해 숫자만 보내줌 */
-		const result = fullUserWithoutPassword.toJSON()
-		result.Posts = result.Posts.length
-		result.Followers = result.Followers.length
-		result.Followings = result.Followings.length
-		return res.status(200).json(result)
+		const posts = await Post.findAll({
+			where,
+			limit: 10, // 가져올 갯수 설정
+			order: [
+				['createdAt', 'DESC'],
+				[Comment, 'createdAt', 'DESC'],
+			], // 최신 글, 댓글부터
+			include: [
+				{
+					model: Image, // 첨부 이미지
+				},
+				{
+					model: User, // 게시글 작성자
+					attributes: ['email', 'nickname'],
+				},
+				{
+					model: Comment, // 댓글
+					include: [
+						{
+							model: User, // 댓글 작성자
+							attributes: ['email', 'nickname'],
+						},
+					],
+				},
+				{
+					model: User, // 좋아요 누른 사람
+					as: 'Likers',
+					attributes: ['email'],
+				},
+				{
+					model: Post, // 리트윗 게시글
+					as: 'Retweet',
+					include: [
+						{
+							model: User,
+							attributes: ['email', 'nickname'],
+						},
+						{
+							model: Image,
+						},
+					],
+				},
+			],
+		})
+		res.status(200).json(posts)
 	} catch (err) {
 		console.error(err)
 		next(err)

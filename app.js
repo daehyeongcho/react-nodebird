@@ -5,6 +5,8 @@ const cookieParser = require('cookie-parser')
 const passport = require('passport')
 const morgan = require('morgan')
 const path = require('path')
+const hpp = require('hpp')
+const helmet = require('helmet')
 
 const routes = require('./routes')
 const db = require('./models')
@@ -24,10 +26,16 @@ require('dotenv').config() // dotenv 모듈
 passportConfig() // passport 모듈
 
 /* 미들웨어 */
-app.use(morgan('dev')) // 프론트 -> 백엔드 요청 기록
+if (process.env.NODE_ENV === 'production') {
+	app.use(morgan('combined'))
+	app.use(hpp())
+	app.use(helmet())
+} else {
+	app.use(morgan('dev')) // 프론트 -> 백엔드 요청 기록
+}
 app.use(
 	cors({
-		origin: 'http://localhost:3000',
+		origin: ['http://localhost:3000', 'nodebird.com'],
 		credentials: true, // 쿠키 허용
 	}),
 )

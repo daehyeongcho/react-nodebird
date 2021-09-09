@@ -18,39 +18,44 @@ try {
 	fs.mkdirSync('uploads')
 }
 
-/* AWS S3 연결 */
-AWS.config.update({
-	accessKeyId: process.env.S3_ACCESS_KEY_ID,
-	secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
-	region: 'ap-northeast-2'
-})
-
 /* multer 미들웨어 선언 */
-const upload = multer({
-	storage: multerS3({
-		s3: new AWS.S3(), // multer와 S3 연결
-		bucket: 'fosel-react-nodebird',
-		key(req, file, cb) {
-			cb(null, `original/${Date.now()}_${path.basename(file.originalname)}`)
-		}
-	}),
-	limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
-})
-// const upload = multer({
-// 	storage: multer.diskStorage({
-// 		destination(req, file, done) {
-// 			done(null, 'uploads')
-// 		},
-// 
-// 		/* 랜디.jpg */
-// 		filename(req, file, done) {
-// 			const ext = path.extname(file.originalname) // 확장자 추출(.jpg)
-// 			const basename = path.basename(file.originalname, ext) // 랜디
-// 			done(null, basename + '_' + new Date().getTime() + ext) // 랜디_15184712891.jpg
-// 		},
-// 	}),
-// 	limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
-// })
+let upload
+if (process.env.NODE_ENV === 'production') {
+	/* 배포 모드에선 AWS S3 연결해야 함. */
+	AWS.config.update({
+		accessKeyId: process.env.S3_ACCESS_KEY_ID,
+		secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+		region: 'ap-northeast-2',
+	})
+
+	upload = multer({
+		storage: multerS3({
+			s3: new AWS.S3(), // multer와 S3 연결
+			bucket: 'fosel-react-nodebird',
+			key(req, file, cb) {
+				cb(null, `original/${Date.now()}_${path.basename(file.originalname)}`)
+			},
+		}),
+		limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+	})
+} else {
+	/* 개발 모드 */
+	upload = multer({
+		storage: multer.diskStorage({
+			destination(req, file, done) {
+				done(null, 'uploads')
+			},
+
+			/* 랜디.jpg */
+			filename(req, file, done) {
+				const ext = path.extname(file.originalname) // 확장자 추출(.jpg)
+				const basename = path.basename(file.originalname, ext) // 랜디
+				done(null, basename + '_' + new Date().getTime() + ext) // 랜디_15184712891.jpg
+			},
+		}),
+		limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+	})
+}
 
 /* POST /post */
 router.post('/', isLoggedIn, upload.none(), async (req, res, next) => {
@@ -187,7 +192,7 @@ router.delete('/:id', isLoggedIn, async (req, res, next) => {
 /* POST /post/images */
 router.post('/images', isLoggedIn, upload.array(/* input name */ 'image'), (req, res, next) => {
 	console.log(req.files)
-	res.json(req.files.map((v) => v.location)) // multerS3에선 location에 저장됨 
+	res.json(req.files.map((v) => v.location)) // multerS3에선 location에 저장됨
 })
 
 /* POST /post/1/comment */

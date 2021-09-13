@@ -83,6 +83,7 @@ router.post('/login', isNotLoggedIn, (req, res, next) => {
 					},
 				],
 			})
+			console.log('req.cookies', req.cookies)
 			return res.status(200).json(fullUserWithoutPassword) // 사용자 정보를 프론트로 넘겨준다.
 		})
 	})(req, res, next) // 미들웨어 확장

@@ -27,18 +27,24 @@ passportConfig() // passport 모듈
 
 /* 미들웨어 */
 if (process.env.NODE_ENV === 'production') {
+	app.enable('trust proxy')
+	console.log('production')
 	app.use(morgan('combined'))
 	app.use(hpp())
 	app.use(helmet())
+	app.use(cors({
+			origin: 'https://nodebird.duckdns.org',
+			credentials: true, // 쿠키 허용
+		})
+	)
 } else {
 	app.use(morgan('dev')) // 프론트 -> 백엔드 요청 기록
+	app.use(cors({
+			origin: true,
+			credentials: true,
+		})
+	)
 }
-app.use(
-	cors({
-		origin: ['http://localhost:3000', 'nodebird.com', 'http://13.125.14.246'],
-		credentials: true, // 쿠키 허용
-	}),
-)
 app.use('/images', express.static(path.join(__dirname, 'uploads'))) // express 서버가 uploads 폴더를 프론트에 제공
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
@@ -48,9 +54,13 @@ app.use(
 		saveUninitialized: false,
 		resave: false,
 		secret: process.env.COOKIE_SECRET,
+		proxy: process.env.NODE_ENV === 'production',
 		cookie: {
+			maxAge: 3600000,
 			httpOnly: true,
-			secure: false,
+			secure: process.env.NODE_ENV === 'production',
+			sameSite: 'none',
+			domain: process.env.NODE_ENV === 'production' ? 'nodebirdapi.duckdns.org' : null,
 		}
 	}),
 )

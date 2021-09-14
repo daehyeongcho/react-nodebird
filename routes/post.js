@@ -60,6 +60,7 @@ if (process.env.NODE_ENV === 'production') {
 /* POST /post */
 router.post('/', isLoggedIn, upload.none(), async (req, res, next) => {
 	try {
+		console.log('post images')
 		const hashtags = req.body.content.match(/#[^\s#]+/g)
 		const post = await Post.create({
 			content: req.body.content,
@@ -127,6 +128,11 @@ router.post('/', isLoggedIn, upload.none(), async (req, res, next) => {
 	}
 })
 
+router.get('/images', (req, res, next) => {
+	res.send('이건 잘됨?')
+})
+
+
 /* GET /post/1 */
 router.get('/:id', async (req, res, next) => {
 	try {
@@ -191,6 +197,7 @@ router.delete('/:id', isLoggedIn, async (req, res, next) => {
 
 /* POST /post/images */
 router.post('/images', isLoggedIn, upload.array(/* input name */ 'image'), (req, res, next) => {
+	console.log('here?')
 	console.log(req.files)
 	res.json(req.files.map((v) => v.location)) // multerS3에선 location에 저장됨
 })

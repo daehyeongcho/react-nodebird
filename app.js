@@ -33,8 +33,8 @@ if (process.env.NODE_ENV === 'production') {
 	app.use(hpp())
 	app.use(helmet())
 	app.use(cors({
-			origin: 'https://nodebird.duckdns.org',
-			credentials: true, // 쿠키 허용
+		origin: ['https://reactnodebird.duckdns.org'],
+		credentials: true, // 쿠키 허용
 		})
 	)
 } else {
@@ -56,11 +56,9 @@ app.use(
 		secret: process.env.COOKIE_SECRET,
 		proxy: process.env.NODE_ENV === 'production',
 		cookie: {
-			maxAge: 3600000,
 			httpOnly: true,
 			secure: process.env.NODE_ENV === 'production',
-			sameSite: 'none',
-			domain: process.env.NODE_ENV === 'production' ? 'nodebirdapi.duckdns.org' : null,
+			domain: process.env.NODE_ENV === 'production' ? '.reactnodebird.duckdns.org' : null,
 		}
 	}),
 )

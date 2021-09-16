@@ -11,11 +11,13 @@ yarn-error.log*
 
 # environment
 .env
-.env.production
 .env.local
-.env.development.local
-.env.test.local
+.env.production
 .env.production.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
 
 # testing
 /coverage

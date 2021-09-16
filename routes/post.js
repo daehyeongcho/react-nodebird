@@ -10,6 +10,9 @@ const { isLoggedIn } = require('./middlewares')
 
 const router = express.Router()
 
+const isProduction = process.env.NODE_ENV === 'production'
+const serverUrl = isProduction ? process.env.SERVER : process.env.DEV_SERVER
+
 /* uploads 폴더가 없어서 새로 생성 */
 try {
 	fs.accessSync('uploads')
@@ -20,47 +23,43 @@ try {
 
 /* multer 미들웨어 선언 */
 let upload
-if (process.env.NODE_ENV === 'production') {
-	/* 배포 모드에선 AWS S3 연결해야 함. */
-	AWS.config.update({
-		accessKeyId: process.env.S3_ACCESS_KEY_ID,
-		secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
-		region: 'ap-northeast-2',
-	})
+// /* 배포 모드에선 AWS S3 연결해야 함. */
+// AWS.config.update({
+//     accessKeyId: process.env.S3_ACCESS_KEY_ID,
+//     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+//     region: 'ap-northeast-2',
+// })
 
-	upload = multer({
-		storage: multerS3({
-			s3: new AWS.S3(), // multer와 S3 연결
-			bucket: 'fosel-react-nodebird',
-			key(req, file, cb) {
-				cb(null, `original/${Date.now()}_${path.basename(file.originalname)}`)
-			},
-		}),
-		limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
-	})
-} else {
-	/* 개발 모드 */
-	upload = multer({
-		storage: multer.diskStorage({
-			destination(req, file, done) {
-				done(null, 'uploads')
-			},
+// upload = multer({
+//     storage: multerS3({
+//         s3: new AWS.S3(), // multer와 S3 연결
+//         bucket: 'fosel-react-nodebird',
+//         key(req, file, cb) {
+//             cb(null, `original/${Date.now()}_${path.basename(file.originalname)}`)
+//         },
+//     }),
+//     limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+// })
 
-			/* 랜디.jpg */
-			filename(req, file, done) {
-				const ext = path.extname(file.originalname) // 확장자 추출(.jpg)
-				const basename = path.basename(file.originalname, ext) // 랜디
-				done(null, basename + '_' + new Date().getTime() + ext) // 랜디_15184712891.jpg
-			},
-		}),
-		limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
-	})
-}
+upload = multer({
+	storage: multer.diskStorage({
+		destination(req, file, done) {
+			done(null, 'uploads')
+		},
+
+		/* 랜디.jpg */
+		filename(req, file, done) {
+			const ext = path.extname(file.originalname) // 확장자 추출(.jpg)
+			const basename = path.basename(file.originalname, ext) // 랜디
+			done(null, basename + '_' + new Date().getTime() + ext) // 랜디_15184712891.jpg
+		},
+	}),
+	limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+})
 
 /* POST /post */
 router.post('/', isLoggedIn, upload.none(), async (req, res, next) => {
 	try {
-		console.log('post images')
 		const hashtags = req.body.content.match(/#[^\s#]+/g)
 		const post = await Post.create({
 			content: req.body.content,
@@ -132,7 +131,6 @@ router.get('/images', (req, res, next) => {
 	res.send('이건 잘됨?')
 })
 
-
 /* GET /post/1 */
 router.get('/:id', async (req, res, next) => {
 	try {
@@ -178,6 +176,84 @@ router.get('/:id', async (req, res, next) => {
 	}
 })
 
+/* PATCH /post/1 */
+router.patch('/:id', isLoggedIn, upload.none(), async (req, res, next) => {
+	try {
+		const id = req.params.id
+		const hashtags = req.body.content.match(/#[^\s#]+/g)
+		const post = await Post.findOne({
+			where: { id },
+		})
+
+		if (!post) {
+			return res.status(403).send('존재하지 않는 게시글입니다.')
+		}
+
+		post.content = req.body.content
+
+		/* 해쉬태그 처리 */
+		if (hashtags) {
+			/* 이미 존재하는 해쉬태그면 새로 생성해서 올릴 필요 없음 */
+			const result = await Promise.all(
+				hashtags.map((tag) =>
+					Hashtag.findOrCreate({ where: { name: tag.slice(1).toLowerCase() } }),
+				),
+			) // return [hashtag, 생성됐는지아닌지여부]
+			await post.setHashtags(result.map((v) => v[0]))
+		}
+
+		/* 이미지를 올린 경우 */
+		if (req.body.image) {
+			/* 이미지를 여러 개 올린 경우 image: [랜디.jpg, 제로초.jpg] */
+			if (Array.isArray(req.body.image)) {
+				const images = await Promise.all(
+					req.body.image.map((image) => Image.create({ src: image })),
+				) // DB엔 이미지 파일을 직접 올리지 않고 주소만 저장함.
+				await post.setImages(images)
+			} else {
+				/* 이미지를 하나만 올린 경우 image: 랜디.jpg */
+				const image = await Image.create({ src: req.body.image })
+				await post.setImages(image)
+			}
+		}
+		await post.save()
+
+		/* 정보를 완성해서 돌려주기 */
+		const fullPost = await Post.findOne({
+			where: { id: post.id },
+			include: [
+				{
+					model: Image, // 첨부 이미지
+				},
+				{
+					model: User, // 게시글 작성자
+					attributes: ['email', 'nickname'],
+				},
+				{
+					model: Comment, // 댓글
+					include: [
+						{
+							model: User, // 댓글 작성자
+							attributes: ['email', 'nickname'],
+							order: [['createdAt', 'DESC']],
+						},
+					],
+				},
+				{
+					model: User, // 좋아요 누른 사람
+					as: 'Likers',
+					attributes: ['email'],
+				},
+			],
+		})
+		console.log(JSON.stringify(fullPost))
+		res.status(201).json(fullPost)
+	} catch (err) {
+		console.error(err)
+		next(err)
+	}
+})
+
 /* DELETE /post/1 */
 router.delete('/:id', isLoggedIn, async (req, res, next) => {
 	try {
@@ -199,7 +275,7 @@ router.delete('/:id', isLoggedIn, async (req, res, next) => {
 router.post('/images', isLoggedIn, upload.array(/* input name */ 'image'), (req, res, next) => {
 	console.log('here?')
 	console.log(req.files)
-	res.json(req.files.map((v) => v.location)) // multerS3에선 location에 저장됨
+	res.json(req.files.map((v) => `${serverUrl}/images/${v.filename}`))
 })
 
 /* POST /post/1/comment */

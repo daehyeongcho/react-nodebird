@@ -196,6 +196,7 @@ router.get('/followers', isLoggedIn, async (req, res, next) => {
 		}
 
 		const followers = await user.getFollowers({
+			attributes: ['email', 'nickname'],
 			limit: parseInt(req.query.limit, 10),
 		})
 		res.status(200).json(followers)
@@ -214,6 +215,7 @@ router.get('/followings', isLoggedIn, async (req, res, next) => {
 		}
 
 		const followings = await user.getFollowings({
+			attributes: ['email', 'nickname'],
 			limit: parseInt(req.query.limit, 10),
 		})
 		res.status(200).json(followings)

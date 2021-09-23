@@ -127,10 +127,6 @@ router.post('/', isLoggedIn, upload.none(), async (req, res, next) => {
 	}
 })
 
-router.get('/images', (req, res, next) => {
-	res.send('이건 잘됨?')
-})
-
 /* GET /post/1 */
 router.get('/:id', async (req, res, next) => {
 	try {
